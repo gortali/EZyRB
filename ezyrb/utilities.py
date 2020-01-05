@@ -29,6 +29,10 @@ def normalize(v):
     """
     return v / np.linalg.norm(v, 2)
 
+def triangle_area(points):
+
+    return 0.5 * np.linalg.norm( np.cross( points[1]-points[0], points[2]-points[0] ) )
+
 
 def polygon_area(points):
     """
@@ -53,7 +57,7 @@ def polygon_area(points):
         axis=0)
 
     unit_vector = normalize(normal(*points[0:3]))
-
+    
     return np.abs(np.dot(total, unit_vector) * .5)
 
 
@@ -75,6 +79,21 @@ def simplex_volume(vertices):
     return np.abs(np.linalg.det(distance) / math.factorial(vertices.shape[1]))
 
 
+
+def compute_area_from_var(points, cells):
+    """
+    Given a file, this method computes the area for each cell of the mesh stored
+    in the file and returns it. It uses :func:`polygon_area`.
+
+    :param str filename: the name of the file to parse in order to extract
+        the necessary information about the cells.
+    :return: the array that contains the area of each cells.
+    :rtype: numpy.ndarray
+    """
+
+    pt = points[cells]
+    return .5*np.linalg.norm(np.cross(pt[:,1,:]-pt[:,0,:],pt[:,2,:]-pt[:,0,:]), axis=1)
+
 def compute_area(filename):
     """
     Given a file, this method computes the area for each cell of the mesh stored
@@ -87,6 +106,35 @@ def compute_area(filename):
     """
     points, cells = FileHandler(filename).get_geometry(get_cells=True)
     return np.array([polygon_area(points[cell]) for cell in cells])
+
+def compute_normals_from_var(points, cells, datatype='cell'):
+    """
+    Given a file, this method computes the surface normals of the mesh stored
+    in the file. It allows to compute the normals of the cells or of the points.
+    The normal computed in a point is the interpolation of the cell normals of
+    the cells adiacent to the point.
+
+    :param str filename: the name of the file to parse in order to extract
+        the geometry information.
+    :param str datatype: indicate if the normals have to be computed for the
+        points or the cells. The allowed values are: 'cell', 'point'. Default
+        value is 'cell'.
+    :return: the array that contains the normals.
+    :rtype: numpy.ndarray
+    """
+    normals = np.array(
+        [normalize(normal(*points[cell][0:3])) for cell in cells])
+
+    if datatype == 'point':
+        normals_cell = np.empty((points.shape[0], 3))
+        for i_point in np.arange(points.shape[0]):
+            cell_adiacent = [cells.index(c) for c in cells if i_point in c]
+            normals_cell[i_point] = normalize(
+                np.mean(normals[cell_adiacent], axis=0))
+        normals = normals_cell
+
+    return normals
+
 
 
 def compute_normals(filename, datatype='cell'):

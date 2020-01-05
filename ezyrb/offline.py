@@ -16,6 +16,7 @@ from ezyrb.points import Points
 from ezyrb.snapshots import Snapshots
 from ezyrb.utilities import simplex_volume
 
+from scipy.interpolate import LinearNDInterpolator
 
 class Offline(object):
     """
@@ -41,11 +42,17 @@ class Offline(object):
                  output_name,
                  space_type=PODInterpolation,
                  weight_name=None,
-                 dformat='cell'):
+                 dformat='cell',
+                 truncate=None,
+                 interpolator=LinearNDInterpolator,
+                 smoothness=0.0):
 
         self.mu = Points()
         self.snapshots = Snapshots(output_name, weight_name, dformat)
         self.space = space_type()
+        self.truncate = truncate
+        self.interpolator=interpolator
+        self.smoothness=smoothness
 
     def init_database(self, values, files):
         """
@@ -105,6 +112,7 @@ class Offline(object):
         :param str new_file: the name of snapshot file to add to
             database.
         """
+
         self.mu.append(new_mu)
         self.snapshots.append(new_file)
 
@@ -113,7 +121,7 @@ class Offline(object):
         Generate the reduced basis space by combining the snapshots. It
         uses the chosen method for the generation.
         """
-        self.space.generate(self.mu, self.snapshots)
+        self.space.generate(self.mu, self.snapshots, self.truncate, self.interpolator, self.smoothness)
 
     def save_rb_space(self, filename):
         """

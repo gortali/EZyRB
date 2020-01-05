@@ -66,6 +66,7 @@ class RBFInterpolator(object):
         :return: the interpolated values.
         :rtype: numpy.ndarray
         """
+
         return self.basis(
-            distance_matrix(new_points, self.points), self.radius).dot(
+            distance_matrix(np.array(new_points).reshape(1,6), self.points), self.radius).dot(
                 self.weights)

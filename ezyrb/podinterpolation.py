@@ -4,9 +4,8 @@ Decomposition Interpolation
 """
 
 from ezyrb.parametricspace import ParametricSpace
-from scipy.interpolate import LinearNDInterpolator
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 class PODInterpolation(ParametricSpace):
     """
@@ -42,7 +41,7 @@ class PODInterpolation(ParametricSpace):
         """
         return self._interpolator
 
-    def generate(self, points, snapshots, interpolator=LinearNDInterpolator):
+    def generate(self, points, snapshots, truncate, interpolator, smoothness):
         """
         Generate the reduced space using the proper orthogonal decomposition
         interpolation: the matrix that contains the `snapshots` computed for
@@ -56,11 +55,30 @@ class PODInterpolation(ParametricSpace):
         :param object interpolator: the interpolator used to interpolate the
             coefficients.
         """
-        eig_vec = np.linalg.svd(snapshots.weighted, full_matrices=False)[0]
+
+        if truncate is None:
+            self.truncate = snapshots.weighted.shape[1]
+        else:
+            self.truncate = int(truncate)
+
+        eig_vec, sing_values, right = np.linalg.svd(snapshots.weighted, full_matrices=False)
+
+        #np.savetxt('sing_values.txt',sing_values)
+
+        #sing_values = sing_values/sing_values[0]
+
+        #plt.plot(np.log10(sing_values[:80]),'.')
+        #plt.plot(sing_values[1:],'.')
+        #plt.ylim([-3.,0])
+        #plt.savefig('eigen.png')
+        #plt.close()
 
         self._pod_basis = np.sqrt(snapshots.weights) * eig_vec
-        coefs = self._pod_basis.T.dot(snapshots.weighted)
-        self._interpolator = interpolator(points.values.T, coefs.T)
+        coefs = self._pod_basis[:,:self.truncate].T.dot(snapshots.weighted)
+        if(smoothness==0):
+            self._interpolator = interpolator(points.values.T, coefs.T)
+        else:
+            self._interpolator = interpolator(points.values.T, coefs.T, smoothness=smoothness)
 
     def __call__(self, value):
         """
@@ -69,7 +87,9 @@ class PODInterpolation(ParametricSpace):
 
         :param numpy.ndarray value: the new parametric point
         """
-        return self._pod_basis.dot(self._interpolator(value).T)
+
+
+        return self._pod_basis[:,:self.truncate].dot(self._interpolator(value).T)
 
     @staticmethod
     def loo_error(points, snapshots, func=np.linalg.norm):
